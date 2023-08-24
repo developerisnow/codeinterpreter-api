@@ -18,26 +18,28 @@ class CodeBoxChatMessageHistory(BaseChatMessageHistory):
 
         if "history.json" not in [f.name for f in self.codebox.list_files()]:
             name, content = "history.json", b"{}"
+            self.codebox.upload(name, content)
+            print('history111')
             if (loop := asyncio.get_event_loop()).is_running():
+                print('history111-1')
                 loop.create_task(self.codebox.aupload(name, content))
             else:
+                print('history111-2')
                 self.codebox.upload(name, content)
 
     @property
     def messages(self) -> List[BaseMessage]:  # type: ignore
         """Retrieve the messages from the codebox"""
-        msgs = (
-            messages_from_dict(json.loads(file_content.decode("utf-8")))
-            if (
-                file_content := (
-                    loop.run_until_complete(self.codebox.adownload("history.json"))
-                    if (loop := asyncio.get_event_loop()).is_running()
-                    else self.codebox.download("history.json")
-                ).content
-            )
-            else []
-        )
+        try:
+            file_content = self.codebox.download("history.json").content
+            msgs = messages_from_dict(json.loads(file_content.decode("utf-8")))
+        except codeboxapi.errors.CodeBoxError:  # Add this import at the top
+            msgs = []
+
         return msgs
+
+
+
 
     def add_message(self, message: BaseMessage) -> None:
         """Append the message to the record in the local file"""
